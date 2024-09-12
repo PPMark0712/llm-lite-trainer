@@ -12,7 +12,7 @@ def draw_loss(ckpt_path):
     
     # 折线图保留n_points个点，否则上万条数据的折线图会很乱
     x, y = [], []
-    n_points = 100  # 图上保留几个点
+    n_points = min(100, len(l))  # 图上保留几个点
     step = len(l) // n_points 
     for i in range(0, len(l), step):
         x.append(i + 1)

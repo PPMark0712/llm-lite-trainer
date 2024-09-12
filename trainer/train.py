@@ -10,7 +10,6 @@ from torch.utils.data.distributed import DistributedSampler
 import deepspeed
 from peft import get_peft_model, PeftModel, LoraConfig
 
-from config import lora_config, deepspeed_config
 from dataset import TorchMultiFileBinaryDataset
 from draw_loss import draw_loss
 
@@ -82,7 +81,7 @@ def prepare_dataloader(deepspeed_config, device, args):
         dataset=train_dataset,
         sampler=train_sampler,
         batch_size=deepspeed_config["train_micro_batch_size_per_gpu"],
-        num_workers=4,
+        num_workers=0,
     )
     return train_dataloader
 
@@ -157,7 +156,7 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
                 save_checkpoint(engine, tokenizer, step, losses, args)
             
             # 根据max_steps终止训练
-            if step >= args.max_steps:
+            if args.max_steps and step >= args.max_steps:
                 break
         
         # 根据save_epochs保存存档点
@@ -165,13 +164,13 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
             save_checkpoint(engine, tokenizer, step, losses, args)
         
         # 根据max_steps终止训练
-        if step >= args.max_steps:
+        if args.max_steps and step >= args.max_steps:
             break
     
     # 判断是否需要保存最后一个存档点
     if args.save_steps and args.max_steps % args.save_steps != 0:
         save_checkpoint(engine, tokenizer, step, losses, args)
-    if args.save_epochs and (epoch - 1) % args.save_epochs != 0:
+    if args.save_epochs and end_epoch % args.save_epochs != 0:
         save_checkpoint(engine, tokenizer, step, losses, args)
 
     if dist.get_rank() == 0:
@@ -203,7 +202,6 @@ def save_checkpoint(engine, tokenizer, step, losses, args):
         print(json.dumps(losses), file=f)
 
     draw_loss(ckpt_path)
-
 
 def set_seed(seed):
     """设置随机数种子, 保证结果可重现"""
@@ -257,14 +255,14 @@ def get_args():
     """获得参数"""
     parser = argparse.ArgumentParser()
     # train params
-    parser.add_argument("--max_epochs", type=int, required=True)
-    parser.add_argument("--max_steps", type=int, required=True)
+    parser.add_argument("--max_epochs", type=int, default=None)
+    parser.add_argument("--max_steps", type=int, default=None)
     parser.add_argument("--model_path", type=str, default=None)
     parser.add_argument("--seed", type=int, default=19260817)
     parser.add_argument("--load_ckpt_path", type=str, default=None)
     parser.add_argument("--data_path", type=str, help="the root folder of your data")
-    parser.add_argument("--deepspeed_config_path", type=str, required=True)
-    parser.add_argument("--lora_config", type=str, default=None)
+    parser.add_argument("--deepspeed_config_path", type=str, default="deepspeed_config.json")
+    parser.add_argument("--lora_config_path", type=str, default="lora_config.json")
     # save params
     parser.add_argument("--output_path", type=str, default="output")
     parser.add_argument("--save_steps", type=int, default=None)
@@ -279,9 +277,10 @@ def get_args():
     parser.add_argument("--local_rank", type=int, default=-1)
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
-
+    assert bool(args.max_steps) != bool(args.max_epochs), "Specify exactly one of --save_steps or --save_epochs"
     assert bool(args.save_steps) != bool(args.save_epochs), "Specify exactly one of --save_steps or --save_epochs"
-    if not args.load_lora:
+    assert args.max_steps and args.save_steps or args.max_epochs and args.save_epochs
+    if not args.use_lora:
         assert bool(args.model_path) or bool(args.load_ckpt_path), "Specify --model_path or --load_ckpt_path to define the base model."
     else:
         assert args.lora_config, "Specify --lora_config_path when --use_lora is set"

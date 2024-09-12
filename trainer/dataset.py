@@ -84,20 +84,24 @@ class TorchMultiFileBinaryDataset(Dataset):
     def __init__(self, data_path, device, shuffle=False):
         self.multi_file_dataset = MultiFileBinaryDataset(get_bin_files(data_path))
         self.device = device
-        self.shuffled_indexs = [i for i in range(len(MultiFileBinaryDataset))]
+        self.shuffled_indexs = [i for i in range(len(self.multi_file_dataset))]
         if shuffle:
             random.shuffle(self.shuffled_indexs)
 
     def __len__(self):
+        return 5
         return len(self.multi_file_dataset)
 
     def __getitem__(self, idx):
         idx = self.shuffled_indexs[idx]
         item = self.multi_file_dataset[idx]
+
         if isinstance(item, tuple):
+            # tuple数据解析为input_ids何labels
             input_ids = item[0]
             labels = item[1]
         else:
+            # 无标签的预训练语料
             input_ids = item
             labels = item
         input_ids = torch.tensor(input_ids, dtype=torch.long, device=self.device)
