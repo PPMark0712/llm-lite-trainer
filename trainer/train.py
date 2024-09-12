@@ -8,7 +8,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 import deepspeed
-from peft import get_peft_model, PeftModel
+from peft import get_peft_model, PeftModel, LoraConfig
 
 from config import lora_config, deepspeed_config
 from dataset import TorchMultiFileBinaryDataset
@@ -38,7 +38,7 @@ def setup_distributed_environment(local_rank):
     return device
 
 
-def initialize_model(device, args):
+def initialize_model(device, lora_config, args):
     """加载和初始化模型"""
     print0("Loading model...")
     
@@ -97,9 +97,11 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
 
     step = 0
     losses = []
-    begin_epoch = 1
+    begin_epoch = 1  # 第一个epoch编号（加载存档点时有变化）
     end_epoch = args.max_epochs if args.max_epochs else (args.max_steps - 1) // len(train_dataloader) + 1
-    begin_epoch_step = 0
+    begin_epoch_step = 0  # 加载存档点时，第一个epoch需要从第几个batch开始
+
+    # 根据存档点来更新初始epoch和batch
     if args.load_ckpt_path:
         ckpt_path = os.path.join(args.load_ckpt_path, args.ckpt_path, f"{args.save_name}_{args.load_ckpt_step}")
         loss_fn = os.path.join(ckpt_path,"loss_list.json")
@@ -109,22 +111,24 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
         begin_epoch_step = args.load_ckpt_step % len(train_dataloader)
         step = args.load_ckpt_step
     
-    if dist.get_rank() == 0:
-        # 初始化进度条，
+    # 初始化进度条
+    if dist.get_rank() == 0:    
         if args.max_steps:
             total_train_steps = args.max_steps - ((begin_epoch - 1) * len(train_dataloader) + begin_epoch_step)
         else:
             total_train_steps = (args.max_epochs - begin_epoch + 1) * len(train_dataloader)
         pbar = tqdm(total=total_train_steps, ncols=95)
-    
-    for epoch in range(begin_epoch, end_epoch + 1):
-        begin_step = 0 if epoch > begin_epoch else begin_epoch_step
         
-        # 开始训练时，加载存档点的进度条
-        if epoch == begin_epoch and args.load_ckpt_path and dist.get_rank() == 0:
+        # 加载存档点batch的进度条
+        if args.load_ckpt_path:
             skip_pbar = tqdm(total=begin_step, desc="Loading checkpoint", ncols=90)
 
+    # 训练过程
+    for epoch in range(begin_epoch, end_epoch + 1):
+        begin_step = 0 if epoch > begin_epoch else begin_epoch_step
+    
         for batch_id, batch in enumerate(train_dataloader):
+            # 加载存档点batch
             if batch_id < begin_step:
                 if epoch == begin_epoch and args.load_ckpt_path and dist.get_rank() == 0:
                     skip_pbar.update(1)
@@ -132,6 +136,7 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
             if epoch == begin_epoch and args.load_ckpt_path and dist.get_rank() == 0:
                 skip_pbar.close()
 
+            # 前向传播，计算loss，反向传播
             loss = engine(
                 input_ids=batch["input_ids"],
                 labels=batch["labels"],
@@ -141,24 +146,32 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
             engine.step()
             step += 1
             losses.append(loss.item())
-            
+
+            # 更新训练进度条
             if dist.get_rank() == 0:
                 pbar.update()
                 pbar.set_description(f"epoch:{epoch},batch:{batch_id + 1}/{len(train_dataloader)},loss:{np.mean(losses[-200:]):.4f}")
 
+            # 根据save_steps保存存档点
             if args.save_steps and step % args.save_steps == 0:
                 save_checkpoint(engine, tokenizer, step, losses, args)
             
+            # 根据max_steps终止训练
             if step >= args.max_steps:
                 break
         
+        # 根据save_epochs保存存档点
         if args.save_epochs and epoch % args.save_epochs == 0:
             save_checkpoint(engine, tokenizer, step, losses, args)
-
+        
+        # 根据max_steps终止训练
         if step >= args.max_steps:
             break
     
+    # 判断是否需要保存最后一个存档点
     if args.save_steps and args.max_steps % args.save_steps != 0:
+        save_checkpoint(engine, tokenizer, step, losses, args)
+    if args.save_epochs and epoch % args.save_epochs != 0:
         save_checkpoint(engine, tokenizer, step, losses, args)
 
     if dist.get_rank() == 0:
@@ -198,13 +211,19 @@ def set_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
 
 
 def initialize(args):
     set_seed(args.seed)
+
+    # load config
+    with open(args.deepspeed_config_path, "r") as f:
+        deepspeed_config = json.load(f)
+    lora_config = None
+
     if args.load_ckpt_path:
+        with open(args.lora_config_path, "r") as f:
+            lora_config = LoraConfig(**json.load(f))
         args.save_path = args.load_ckpt_path
         file_list = os.listdir(os.path.join(args.load_ckpt_path, args.ckpt_path))
         file_list.sort(key=lambda x:int(x.split("_")[-1]))
@@ -232,7 +251,7 @@ def initialize(args):
             config_show.update({"lora_config": lora_config})
 
         print(json.dumps(config_show, indent=4), file=f)
-
+    return deepspeed_config, lora_config
 
 def get_args():
     """获得参数"""
@@ -243,7 +262,9 @@ def get_args():
     parser.add_argument("--model_path", type=str, default=None)
     parser.add_argument("--seed", type=int, default=19260817)
     parser.add_argument("--load_ckpt_path", type=str, default=None)
-    parser.add_argument("--data_path", type=str)
+    parser.add_argument("--data_path", type=str, help="the root folder of your data")
+    parser.add_argument("--deepspeed_config_path", type=str, required=True)
+    parser.add_argument("--lora_config", type=str, default=None)
     # save params
     parser.add_argument("--output_path", type=str, default="output")
     parser.add_argument("--save_steps", type=int, default=None)
@@ -252,7 +273,6 @@ def get_args():
     parser.add_argument("--save_name", type=str, required=True)
     # lora params
     parser.add_argument("--use_lora", action="store_true")
-    parser.add_argument("--load_lora_path", type=str, default=None)
     # finetune params
     parser.add_argument("--add_tokens", nargs='+', default=None)
     # distribute params
@@ -264,8 +284,9 @@ def get_args():
     if not args.load_lora:
         assert bool(args.model_path) or bool(args.load_ckpt_path), "Specify --model_path or --load_ckpt_path to define the base model."
     else:
+        assert args.lora_config, "Specify --lora_config_path when --use_lora is set"
         assert args.add_tokens is None, "Do not specify --add_tokens when --use_lora is set."
-        assert args.model_path, "Specify --model_path when using --use_lora."
+        assert args.model_path, "Specify --model_path when --use_lora is set."
     if args.save_steps is not None and args.save_steps <= 0:
         raise ValueError("--save_steps must be greater than 0")
     if args.save_epochs is not None and args.save_epochs <= 0:
@@ -275,9 +296,9 @@ def get_args():
 
 def main():
     args = get_args()
-    initialize(args)
+    deepspeed_config, lora_config = initialize(args)
     device = setup_distributed_environment(args.local_rank)
-    model, tokenizer = initialize_model(device, args)
+    model, tokenizer = initialize_model(device, lora_config, args)
     train_dataloader = prepare_dataloader(deepspeed_config, device, args)
     train_model(model, tokenizer, train_dataloader, deepspeed_config, args)
 

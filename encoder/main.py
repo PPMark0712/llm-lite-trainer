@@ -48,43 +48,30 @@ def initialize(args):
 def main(args):
     tokenizer = initialize(args)
     data_loader_module = load_user_module(args.data_loader_path)
-    file_iter_func = data_loader_module.data_loader
-    file_list = data_loader_module.get_file_list()
+    data_loader = data_loader_module.data_loader()
     encode_func = encode_config[args.encode_type]["encode_func"]
     data_func = encode_config[args.encode_type]["data_func"]
-
     total_data_cnt = 0
-    start_time = time.time()
-    for file_name in file_list:
-        file_idx = 0  # 输出文件编号
-        file_iter = file_iter_func(file_name)
-        total_token_processed = 0  # 总共处理了多少token
-        cur_tokens = 0  # 当前处理了多少token
-        cur_data = []
-        for step, raw_data in enumerate(file_iter):
-            item, token_cnt = encode_func(tokenizer, raw_data)
-            cur_data.append(item)
-            cur_tokens += token_cnt
-            total_token_processed += token_cnt
 
-            # 每处理100条数据，输出一次运行效率
-            if step % 100 == 0:  
-                elapsed = time.time() - start_time
-                second = int(time.time() - start_time)
-                print(f"\rprocessed {total_token_processed:.2e} tokens, run for {(second // 3600):02d}:{(second // 60 % 60):02d}:{(second % 60):02d}, {(total_token_processed / elapsed):.2e} tokens/s", end="")
-            
-            # 每tokens_per_file个token需要将tokens_list写入文件
-            if cur_tokens >= args.tokens_per_file:  
-                data = data_func(cur_data, tokenizer, args)
-                fn = os.path.join(args.save_path, f"{args.corpus_name}_{file_idx}.bin")
-                save_binary_file(data, fn)
-                total_data_cnt += len(data)
-                file_idx += 1
-                cur_tokens = 0
-                cur_data = []
+    start_time = time.time()
+    file_idx = 0  # 输出文件编号
+    total_token_processed = 0  # 总共处理了多少token
+    cur_tokens = 0  # 当前处理了多少token
+    cur_data = []
+    for step, raw_data in enumerate(data_loader):
+        item, token_cnt = encode_func(tokenizer, raw_data)
+        cur_data.append(item)
+        cur_tokens += token_cnt
+        total_token_processed += token_cnt
+
+        # 每处理100条数据，输出一次运行效率
+        if step % 100 == 0:  
+            elapsed = time.time() - start_time
+            second = int(time.time() - start_time)
+            print(f"\rprocessed {total_token_processed:.2e} tokens, run for {(second // 3600):02d}:{(second // 60 % 60):02d}:{(second % 60):02d}, {(total_token_processed / elapsed):.2e} tokens/s", end="")
         
-        # 处理最后一部分数据
-        if cur_tokens > 0:
+        # 每tokens_per_file个token需要将tokens_list写入文件
+        if cur_tokens >= args.tokens_per_file:  
             data = data_func(cur_data, tokenizer, args)
             fn = os.path.join(args.save_path, f"{args.corpus_name}_{file_idx}.bin")
             save_binary_file(data, fn)
@@ -92,6 +79,16 @@ def main(args):
             file_idx += 1
             cur_tokens = 0
             cur_data = []
+    
+    # 处理最后一部分数据
+    if cur_tokens > 0:
+        data = data_func(cur_data, tokenizer, args)
+        fn = os.path.join(args.save_path, f"{args.corpus_name}_{file_idx}.bin")
+        save_binary_file(data, fn)
+        total_data_cnt += len(data)
+        file_idx += 1
+        cur_tokens = 0
+        cur_data = []
 
     with open(os.path.join(args.save_path, "summary.json"), "w") as f:
         json.dump({

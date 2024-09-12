@@ -2,6 +2,7 @@ import pickle
 import torch
 from torch.utils.data import Dataset
 import random
+import os
 
 
 def get_bin_files(file_path):
