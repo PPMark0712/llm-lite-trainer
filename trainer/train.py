@@ -171,7 +171,7 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
     # 判断是否需要保存最后一个存档点
     if args.save_steps and args.max_steps % args.save_steps != 0:
         save_checkpoint(engine, tokenizer, step, losses, args)
-    if args.save_epochs and epoch % args.save_epochs != 0:
+    if args.save_epochs and (epoch - 1) % args.save_epochs != 0:
         save_checkpoint(engine, tokenizer, step, losses, args)
 
     if dist.get_rank() == 0:
