@@ -65,7 +65,7 @@ class MultiFileBinaryDataset:
         return self.datasets[dataset_idx][relative_idx]
 
     def _find_dataset_idx(self, idx):
-        # 长度前缀和数组上二分查找
+        # 找到第一个长度累计值大于idx的文件，在长度前缀和数组上二分查找
         l = 0
         r = len(self.cumulative_lengths) - 1
         ans = None
@@ -84,20 +84,21 @@ class TorchMultiFileBinaryDataset(Dataset):
     def __init__(self, data_path, device, shuffle=False):
         self.multi_file_dataset = MultiFileBinaryDataset(get_bin_files(data_path))
         self.device = device
-        self.shuffled_indexs = [i for i in range(len(self.multi_file_dataset))]
+        self.shuffle = shuffle
         if shuffle:
+            self.shuffled_indexs = [i for i in range(len(self.multi_file_dataset))]
             random.shuffle(self.shuffled_indexs)
 
     def __len__(self):
-        return 5
         return len(self.multi_file_dataset)
 
     def __getitem__(self, idx):
-        idx = self.shuffled_indexs[idx]
+        if self.shuffle:
+            idx = self.shuffled_indexs[idx]
         item = self.multi_file_dataset[idx]
 
         if isinstance(item, tuple):
-            # tuple数据解析为input_ids何labels
+            # tuple 数据解析为 (input_ids, labels)
             input_ids = item[0]
             labels = item[1]
         else:

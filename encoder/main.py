@@ -41,6 +41,9 @@ def initialize(args):
         json.dump({"args": {**vars(args)}}, f, indent=4)
     
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
+    if not tokenizer.pad_token_id:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        tokenizer.pad_token = tokenizer.eos_token
     assert tokenizer.vocab_size <= 1 << 16 or args.save_dtype == "int32", "int16 is can't cover the tokenizer vocab size"    
     return tokenizer
 

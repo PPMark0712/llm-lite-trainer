@@ -5,7 +5,7 @@
     "optimizer": {
         "type": "AdamW",
         "params": {
-            "lr": 5e-05,
+            "lr": 7e-5,
             "betas": [
                 0.98,
                 0.999
@@ -16,9 +16,9 @@
     "scheduler": {
         "type": "WarmupLR",
         "params": {
-            "warmup_min_lr": 1e-06,
-            "warmup_max_lr": 1e-05,
-            "warmup_num_steps": 1000
+            "warmup_min_lr": 1e-8,
+            "warmup_max_lr": 1e-5,
+            "warmup_num_steps": 800
         }
     },
     "zero_optimization": {
@@ -34,7 +34,7 @@
             "device": "cpu"
         }
     },
-    "gradient_accumulation_steps": 16,
+    "gradient_accumulation_steps": 10,
     "train_micro_batch_size_per_gpu": 1,
     "wall_clock_breakdown": false,
     "steps_per_print": 100

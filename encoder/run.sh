@@ -1,5 +1,7 @@
-python main.py \
-    --tokenizer_path "/data1/yyz/downloads/models/Qwen/Qwen2-7B" \
+cd /data1/yyz/projects/llm-lite-trainer/encoder
+
+python /data1/yyz/projects/llm-lite-trainer/encoder/main.py \
+    --tokenizer_path /data1/yyz/downloads/models/Qwen/Qwen2-7B \
     --data_loader_path /data1/yyz/projects/llm-lite-trainer/encoder/user_data_loader/alpaca.py \
     --corpus_name alpaca \
     --encode_type qa \
