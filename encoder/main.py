@@ -40,6 +40,7 @@ def initialize(args):
     with open(config_cn, "w") as f:
         json.dump({"args": {**vars(args)}}, f, indent=4)
     
+    print(f"Loading tokenizer from {args.tokenizer_path}")
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
     if not tokenizer.pad_token_id:
         tokenizer.pad_token_id = tokenizer.eos_token_id

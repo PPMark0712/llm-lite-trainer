@@ -261,7 +261,10 @@ def initialize(args):
             assert torch.cuda.device_count() == initial_num_gpus, "num_gpus can't change when loading ckpt!"
     else:
         t = datetime.datetime.now()
-        args.save_path = os.path.join(args.output_path, f"{t.year}-{t.month:02d}-{t.day:02d}_{t.hour:02d}-{t.minute:02d}_{args.save_name}")
+        if args.no_timestamp:
+            args.save_path = os.path.join(args.output_path, args.save_name)
+        else:
+            args.save_path = os.path.join(args.output_path, f"{t.year}-{t.month:02d}-{t.day:02d}_{t.hour:02d}-{t.minute:02d}_{args.save_name}")
         args.load_ckpt_step = 0
         
     os.makedirs(args.save_path, exist_ok=True)
@@ -299,6 +302,7 @@ def get_args():
     parser.add_argument("--ckpt_path", type=str, default="ckpt")
     parser.add_argument("--save_name", type=str, required=True)
     parser.add_argument("--save_optimizer", action="store_true")
+    parser.add_argument("--no_timestamp", action="store_true")
     # lora params
     parser.add_argument("--use_lora", action="store_true")
     parser.add_argument("--lora_config_path", type=str, default="lora_config.json")
@@ -308,8 +312,8 @@ def get_args():
     parser.add_argument("--local_rank", type=int, default=-1)
     parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
-    assert bool(args.max_steps) != bool(args.max_epochs), "Specify exactly one of --max_steps or --max_epochs"
-    assert args.max_steps and args.save_steps or args.max_epochs and args.save_epochs
+    assert bool(args.max_steps) != bool(args.max_epochs), "Specify exactly one of --max_steps and --max_epochs"
+    assert args.save_steps or args.save_epochs, "Specify at least one of --save_steps and --save_epochs"
     if not args.use_lora:
         assert bool(args.model_path) or bool(args.load_ckpt_path), "Specify --model_path or --load_ckpt_path to define the base model."
     else:
