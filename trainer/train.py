@@ -284,7 +284,7 @@ def initialize(args):
     return deepspeed_config, lora_config
 
 
-def get_args():
+def parse_args():
     """获得参数"""
     parser = argparse.ArgumentParser()
     # train params
@@ -328,7 +328,7 @@ def get_args():
 
 
 def main():
-    args = get_args()
+    args = parse_args()
     deepspeed_config, lora_config = initialize(args)
     device = setup_distributed_environment(args.local_rank)
     model, tokenizer = initialize_model(device, lora_config, args)
