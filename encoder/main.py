@@ -102,7 +102,6 @@ def main(args):
     print(f"\nprocessed {total_token_processed} tokens.")
 
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--tokenizer_path", type=str, required=True)

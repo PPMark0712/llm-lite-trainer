@@ -132,7 +132,7 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
         begin_epoch_step = step % len(train_dataloader)
 
     # 初始化进度条
-    if dist.get_rank() == 0:    
+    if dist.get_rank() == 0:
         if args.max_steps:
             total_train_steps = args.max_steps - step
         else:
