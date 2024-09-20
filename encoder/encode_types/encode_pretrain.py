@@ -28,8 +28,9 @@ def data_func_pretrain(data, tokenizer, args):
 
     # 最后一段不足max_length, 进行padding
     pad_len = max_length - len(tokens) % max_length
-    input_ids = tokens[-len(tokens) - max_length:] + [tokenizer.eos_token_id] * pad_len
-    labels = tokens[-len(tokens) - max_length:] + [-100] * pad_len
+    input_ids = tokens[-(len(tokens) % max_length):] + [tokenizer.eos_token_id] * pad_len
+    labels = tokens[-(len(tokens) % max_length):] + [-100] * pad_len
     input_ids = np.array(input_ids, dtype=save_dtype)
+    labels = np.array(labels, dtype=save_dtype)
     ret.append((input_ids, labels))
     return ret
