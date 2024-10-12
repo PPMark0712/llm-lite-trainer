@@ -132,7 +132,7 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
         begin_epoch_step = step % len(train_dataloader)
 
     # 初始化进度条
-    if dist.get_rank() == 0:
+    if args.local_rank == -1 or dist.get_rank() == 0:
         if args.max_steps:
             total_train_steps = args.max_steps - step
         else:
@@ -153,10 +153,10 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
 
         for batch_id, batch in enumerate(train_dataloader):
             if epoch == begin_epoch and batch_id < begin_step:
-                if dist.get_rank() == 0:
+                if args.local_rank == -1 or dist.get_rank() == 0:
                     skip_pbar.update(1)
                 continue
-            if epoch == begin_epoch and batch_id == begin_step and dist.get_rank() == 0 and args.load_ckpt_path:
+            if epoch == begin_epoch and batch_id == begin_step and (args.local_rank == -1 or dist.get_rank() == 0) and args.load_ckpt_path:
                 skip_pbar.close()
             
             # 前向传播，计算loss，反向传播
@@ -171,7 +171,7 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
             losses.append(loss.item())
       
             # 更新训练进度条
-            if dist.get_rank() == 0:
+            if args.local_rank == -1 or dist.get_rank() == 0:
                 pbar.update()
                 pbar.set_description(f"epoch:{epoch},batch:{batch_id + 1}/{len(train_dataloader)},loss:{np.mean(losses[-200:]):.4f}")
 
@@ -197,7 +197,7 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
     if not args.save_steps and args.save_epochs and args.max_epochs % args.save_epochs != 0:
         save_checkpoint(engine, tokenizer, step, losses, args)
 
-    if dist.get_rank() == 0:
+    if args.local_rank == -1 or dist.get_rank() == 0:
         pbar.close()
 
 
@@ -217,16 +217,17 @@ def save_checkpoint(engine, tokenizer, step, losses, args):
 
     # 保存config
     with open(os.path.join(save_path, 'config.json'), 'w') as f:  # 保存config
-        print(json.dumps(engine.module.config.to_dict(), indent=4), file=f)
+        print0(json.dumps(engine.module.config.to_dict(), indent=4), file=f)
     
     # 保存损失函数
     loss_file_name = os.path.join(save_path, "loss_list.json")
-    with open(loss_file_name, "w") as f:
-        json.dump(losses, f)
-    draw_loss(save_path)
+    if args.local_rank == -1 or dist.get_rank() == 0:
+        with open(loss_file_name, "w") as f:
+            json.dump(losses, f)
+        draw_loss(save_path)
 
-    # 保存 tokenizer
-    if dist.get_rank() == 0 or args.local_rank == -1:
+    # 保存 tokenizser
+    if args.local_rank == -1 or dist.get_rank() == 0:
         tokenizer.save_pretrained(save_path)
 
 
@@ -245,6 +246,10 @@ def initialize(args):
     with open(args.deepspeed_config_path, "r") as f:
         deepspeed_config = json.load(f)
     lora_config = None
+    
+    # save start time
+    t = datetime.datetime.now()
+    args.start_time = f"{t.year}-{t.month:02d}-{t.day:02d}_{t.hour:02d}-{t.minute:02d}"
 
     if args.load_ckpt_path:
         with open(args.lora_config_path, "r") as f:
@@ -260,11 +265,10 @@ def initialize(args):
             initial_num_gpus = initial_config["args"]["num_gpus"]
             assert torch.cuda.device_count() == initial_num_gpus, "num_gpus can't change when loading ckpt!"
     else:
-        t = datetime.datetime.now()
         if args.no_timestamp:
             args.save_path = os.path.join(args.output_path, args.save_name)
         else:
-            args.save_path = os.path.join(args.output_path, f"{t.year}-{t.month:02d}-{t.day:02d}_{t.hour:02d}-{t.minute:02d}_{args.save_name}")
+            args.save_path = os.path.join(args.output_path, f"{args.start_time}_{args.save_name}")
         args.load_ckpt_step = 0
         
     os.makedirs(args.save_path, exist_ok=True)
@@ -272,8 +276,8 @@ def initialize(args):
     with open(config_fn, "w") as f:
         config_show = {
             "args": {
-                "num_gpus": torch.cuda.device_count(),
                 **vars(args),
+                "num_gpus": torch.cuda.device_count(),
             },
             "deepspeed_config": deepspeed_config,
         }
