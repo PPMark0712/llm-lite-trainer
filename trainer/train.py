@@ -191,11 +191,8 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
         if args.max_steps and step >= args.max_steps:
             break
 
-    # 判断是否需要保存最后一个存档点
-    if args.save_steps and args.max_steps and args.max_steps % args.save_steps != 0:
-        save_checkpoint(engine, tokenizer, step, losses, args)
-    if not args.save_steps and args.save_epochs and args.max_epochs % args.save_epochs != 0:
-        save_checkpoint(engine, tokenizer, step, losses, args)
+    # 确保保存了最后一个存档点
+    save_checkpoint(engine, tokenizer, step, losses, args)
 
     if args.local_rank == -1 or dist.get_rank() == 0:
         pbar.close()
