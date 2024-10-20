@@ -77,23 +77,22 @@ def initialize_model(device, lora_config, args):
     return model, tokenizer
 
 
-def prepare_dataloader(deepspeed_config, device, args):
+def prepare_dataloader(deepspeed_config, args):
     """准备数据加载器"""
     print0("\n" + "=" * 20 + "\nLoading dataset...\n" + "=" * 20 + "\n")
-    train_dataset = TorchMultiFileBinaryDataset(args.data_path, device)
-    train_sampler = DistributedSampler(train_dataset, shuffle=True) if args.local_rank != -1 else None
+    train_dataset = TorchMultiFileBinaryDataset(args.data_path)
+    train_sampler = DistributedSampler(train_dataset, shuffle=args.shuffle_data) if args.local_rank != -1 else None
     train_dataloader = DataLoader(
         dataset=train_dataset,
         sampler=train_sampler,
         batch_size=deepspeed_config["train_micro_batch_size_per_gpu"],
-        num_workers=0,
         # drop_last=True,
     )
     print0("\n" + "=" * 20 + "\nDataset is loaded.\n" + "=" * 20 + "\n")
     return train_dataloader
 
 
-def train_model(model, tokenizer, train_dataloader, ds_config, args):
+def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
     """模型训练循环"""
     engine, optimizer, _, _ = deepspeed.initialize(
         config=ds_config,
@@ -159,6 +158,8 @@ def train_model(model, tokenizer, train_dataloader, ds_config, args):
             if epoch == begin_epoch and batch_id == begin_step and (args.local_rank == -1 or dist.get_rank() == 0) and args.load_ckpt_path:
                 skip_pbar.close()
             
+            batch = {k: v.to(device) for k, v in batch.items()}  # 把输入放进显卡
+
             # 前向传播，计算loss，反向传播
             loss = engine(
                 input_ids=batch["input_ids"],
@@ -293,6 +294,7 @@ def parse_args():
     parser.add_argument("--max_epochs", type=int, default=None)
     parser.add_argument("--max_steps", type=int, default=None)    
     parser.add_argument("--seed", type=int, default=19260817)
+    parser.add_argument("--shuffle_data", action="store_true")
     parser.add_argument("--load_ckpt_path", type=str, default=None)
     parser.add_argument("--data_path", type=str, help="the root folder of your data")
     parser.add_argument("--deepspeed_config_path", type=str, default="deepspeed_config.json")
@@ -333,8 +335,8 @@ def main():
     deepspeed_config, lora_config = initialize(args)
     device = setup_distributed_environment(args.local_rank)
     model, tokenizer = initialize_model(device, lora_config, args)
-    train_dataloader = prepare_dataloader(deepspeed_config, device, args)
-    train_model(model, tokenizer, train_dataloader, deepspeed_config, args)
+    train_dataloader = prepare_dataloader(deepspeed_config, args)
+    train_model(model, tokenizer, train_dataloader, device, deepspeed_config, args)
 
 
 if __name__ == "__main__":

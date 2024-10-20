@@ -81,9 +81,8 @@ class MultiFileBinaryDataset:
 
 class TorchMultiFileBinaryDataset(Dataset):
     """Torch-compatible Dataset class to handle multiple binary files."""
-    def __init__(self, data_path, device, shuffle=False):
+    def __init__(self, data_path, shuffle=False):
         self.multi_file_dataset = MultiFileBinaryDataset(get_bin_files(data_path))
-        self.device = device
         self.shuffle = shuffle
         if shuffle:
             self.shuffled_indexs = [i for i in range(len(self.multi_file_dataset))]
@@ -105,8 +104,8 @@ class TorchMultiFileBinaryDataset(Dataset):
             # 无标签的预训练语料
             input_ids = item
             labels = item
-        input_ids = torch.tensor(input_ids, dtype=torch.long, device=self.device)
-        labels = torch.tensor(labels, dtype=torch.long, device=self.device)
+        input_ids = torch.tensor(input_ids, dtype=torch.long, device=torch.device("cpu"))
+        labels = torch.tensor(labels, dtype=torch.long, device=torch.device("cpu"))
         return {
             "input_ids": input_ids, 
             "labels": labels,
