@@ -57,7 +57,6 @@ python /data1/yyz/projects/llm-lite-trainer/encoder/main.py \
 ```
 
 
-
 用户需要自己写一个data_loader.py（文件名任意），并在其中实现data_loader()迭代器函数，用于迭代自定义的数据集，可以参考encoder/user_data_loader目录中的例子。
 
 ```py
@@ -66,6 +65,7 @@ def data_loader():
     yield ""
 ```
 
+
 不同encode_type有不同返回格式：
 
 ```
@@ -73,8 +73,8 @@ pretrain: 返回一个str，表示一条预训练数据
 
 qa: 返回一个带有"q"和"a"这两个key的dict，它们对应的value类型是str，表示问题和回答的文本
 {
-	"q": str,
-	"a": str
+    "q": str,
+    "a": str
 }
 ```
 
@@ -99,7 +99,6 @@ output_path/
 关于如何读取这些文件，可以参考trainer/dataset.py中的类。
 
 
-
 ## trainer
 
 ### 使用
@@ -107,17 +106,22 @@ output_path/
 1、在任意目录下编写并运行run.sh脚本，例如：
 
 ```bash
-cd /path/to/llm-lite-trainer/trainer/
+cd /data1/yyz/projects/llm-lite-trainer/trainer/
 
-deepspeed --include localhost:0 --master_port 12345 train.py \
-    --model_path /path/to/your/model \
-    --data_path /path/to/your/data \
-    --save_name <your_model_name> \
-    --output_path /path/to/your/output/path \
-    --deepspeed_config_path /path/to/your/deepspeed_config.json \
-    --max_epochs 3 \
-    --save_epochs 1 \
-    --save_steps 1000 \
+model_path=path/to/your/model
+data_path=path/to/your/data
+output_path=path/to/save/checkpoints
+save_name=your_model_name  # for example: "Qwen2-7B-alpaca", "llama3-8B-Instruct-MetaMathQA"
+
+
+deepspeed --include localhost:0,1,2,3 --master_port 12345 train.py \
+    --model_path $model_path \
+    --data_path $data_path \
+    --output_path $output_path \
+    --shuffle_data \
+    --save_name $save_name \
+    --max_epochs 1 \
+    --save_steps 2000
 ```
 
 参数说明
@@ -130,13 +134,14 @@ deepspeed --include localhost:0 --master_port 12345 train.py \
 --load_ckpt_path str, 默认None，加载的存档点路径
 --data_path str, 数据路径根目录，会读取路径中所有的.bin和.idx文件（需使用本项目的encoder生成）
 --deepspeed_config_path str, ds_config.json绝对路径，若不指定则使用项目中的config
+--shuffle_data store_true, 是否随机打乱训练数据
 --add_tokens str, nargs='+', 添加的特殊token，会修改模型嵌入层结构
 # 输出参数
 --output_path str, 输出绝对路径
 --save_name str, 保存文件夹名称（建议为模型名+训练数据名），必须指定，同时还会自动生成时间戳
 --save_steps int, 每多少步保存存档点
 --save_epochs int, 每多少论保存存档点
---save_optimizer store_true, 保存优化器状态（若设置，存档点大小会扩大到7倍）
+--save_optimizer store_true, 保存优化器状态（若设置，存档点大小会扩大到7倍左右）
 # lora参数
 --use_lora store_true, 使用lora
 --lora_config_path str, lora_config.json绝对路径，若不指定则使用项目中的config

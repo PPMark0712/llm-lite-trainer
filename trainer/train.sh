@@ -14,3 +14,4 @@ deepspeed --include localhost:0,1,2,3 --master_port 12345 train.py \
     --save_name $save_name \
     --max_epochs 1 \
     --save_steps 2000 \
+
