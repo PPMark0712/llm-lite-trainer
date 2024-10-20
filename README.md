@@ -1,10 +1,6 @@
 # llm-lite-trainer
 
-## encoder
-
-### 使用
-
-配置环境
+## 配置环境
 
 ```text
 创建并激活环境
@@ -25,6 +21,9 @@ pip install flash-attn --no-build-isolation
 pip install transformers deepspeed peft matplotlib
 ```
 
+## encoder
+
+### 使用
 
 在任意目录下编写并运行run.sh脚本，例如：
 
