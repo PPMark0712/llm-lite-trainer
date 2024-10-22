@@ -99,7 +99,8 @@ def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
         model=model,
         model_parameters=model.parameters(),
     )
-
+    engine.train()
+    
     # 初始化step和epoch
     step = 0
     losses = []
