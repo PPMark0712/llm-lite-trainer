@@ -168,6 +168,7 @@ def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
                 use_cache=False,
             ).loss
             engine.backward(loss)
+            torch.nn.utils.clip_grad_norm_(engine.module.parameters(), max_norm=args.max_grad_norm)
             engine.step()
             step += 1
             losses.append(loss.item())
@@ -242,7 +243,7 @@ def initialize(args):
     set_seed(args.seed)
 
     # load config
-    with open(args.deepspeed_config_path, "r") as f:
+    with open(args.deepspeed_config_path, "r", encoding="utf-8") as f:
         deepspeed_config = json.load(f)
     lora_config = None
     
@@ -291,14 +292,15 @@ def parse_args():
     """获得参数"""
     parser = argparse.ArgumentParser()
     # train params
-    parser.add_argument("--model_path", type=str, default=None)
+    parser.add_argument("--model_path", type=str, required=True)
     parser.add_argument("--max_epochs", type=int, default=None)
     parser.add_argument("--max_steps", type=int, default=None)    
     parser.add_argument("--seed", type=int, default=19260817)
     parser.add_argument("--shuffle_data", action="store_true")
     parser.add_argument("--load_ckpt_path", type=str, default=None)
-    parser.add_argument("--data_path", type=str, help="the root folder of your data")
+    parser.add_argument("--data_path", type=str, required=True, help="the root folder of your data")
     parser.add_argument("--deepspeed_config_path", type=str, default="deepspeed_config.json")
+    parser.add_argument("--max_grad_norm", type=float, default=3.0, help="Max gradient norm for gradient clipping")
     # save params
     parser.add_argument("--output_path", type=str, default="output")
     parser.add_argument("--save_steps", type=int, default=None)
