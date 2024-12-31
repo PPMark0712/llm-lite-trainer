@@ -27,14 +27,14 @@ pip install transformers deepspeed peft matplotlib
 在任意目录下编写并运行run.sh脚本，例如：
 
 ```bash
-cd /data1/yyz/projects/llm-lite-trainer/encoder
+cd /path/to/llm-lite-trainer/encoder
 
-python /data1/yyz/projects/llm-lite-trainer/encoder/main.py \
-    --tokenizer_path /data1/yyz/downloads/models/Qwen/Qwen2-7B \
-    --data_loader_path /data1/yyz/projects/llm-lite-trainer/encoder/user_data_loader/alpaca.py \
+python /path/to/llm-lite-trainer/encoder/encode_multiprocess.py \
+    --tokenizer_path /path/to/tokenizer \
+    --data_loader_path /path/to/tokenizer/llm-lite-trainer/encoder/user_data_loader/alpaca.py \
     --corpus_name alpaca \
     --encode_type qa \
-    --output_path output/debug_alpaca \
+    --output_path /path/to/tokenizer \
     --max_length 4096 \
     --merge_data \
     --save_dtype int32 \
@@ -52,6 +52,7 @@ python /data1/yyz/projects/llm-lite-trainer/encoder/main.py \
 --merge_data store_true, 是否合并qa数据
 --save_dtype 保存文件的数据类型，可选择"int32","int16"
 --tokens_per_file 每个文件的有效token数量，默认5e8
+--num_subprocesses 完成编码任务的子进程数量，默认4，为1时效率比单进程版本低
 ```
 
 
@@ -104,7 +105,7 @@ output_path/
 1、在任意目录下编写并运行run.sh脚本，例如：
 
 ```bash
-cd /data1/yyz/projects/llm-lite-trainer/trainer/
+cd /path/to/llm-lite-trainer/trainer/
 
 model_path=path/to/your/model
 data_path=path/to/your/data
