@@ -77,10 +77,10 @@ def initialize_model(device, lora_config, args):
     return model, tokenizer
 
 
-def prepare_dataloader(deepspeed_config, args):
+def prepare_dataloader(deepspeed_config, tokenizer, args):
     """准备数据加载器"""
     print0("\n" + "=" * 20 + "\nLoading dataset...\n" + "=" * 20 + "\n")
-    train_dataset = TorchMultiFileBinaryDataset(args.data_path)
+    train_dataset = TorchMultiFileBinaryDataset(data_path=args.data_path, shuffle=False, use_position_ids=args.use_position_ids, tokenizer=tokenizer)
     train_sampler = DistributedSampler(train_dataset, shuffle=args.shuffle_data) if args.local_rank != -1 else None
     train_dataloader = DataLoader(
         dataset=train_dataset,
@@ -165,6 +165,7 @@ def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
             loss = engine(
                 input_ids=batch["input_ids"],
                 labels=batch["labels"],
+                position_ids=batch["position_ids"] if args.use_position_ids else None,
                 use_cache=False,
             ).loss
             engine.backward(loss)
@@ -212,12 +213,53 @@ def save_checkpoint(engine, tokenizer, step, losses, args):
     if args.save_optimizer:
         engine.save_checkpoint(ckpt_path, tag=save_ckpt_step)
 
-    # 保存pytorch格式模型
-    engine.save_16bit_model(save_path)
+    # 保存pytorch .bin格式模型
+    # engine.save_16bit_model(save_path)
+    
+    # 保存safetensor格式
+    engine.module.save_pretrained(save_path,safe_serialization=True)
 
     # 保存config
-    with open(os.path.join(save_path, 'config.json'), 'w') as f:  # 保存config
-        print0(json.dumps(engine.module.config.to_dict(), indent=4), file=f)
+    
+    # 加载初始配置
+    if args.use_lora:
+        base_config_path = os.path.join(args.model_path, 'config.json')
+    else:
+        base_model_path = args.model_path if not args.load_ckpt_path else os.path.join(args.load_ckpt_path, args.ckpt_path, f"step_{args.load_ckpt_step}")
+        base_config_path = os.path.join(base_model_path, 'config.json')
+    
+    with open(base_config_path, 'r') as f:
+        base_config = json.load(f)
+    
+    # 获取当前配置
+    current_config = engine.module.config.to_dict()
+    
+    # 只保存基础配置中存在的参数
+    saved_config = {}
+    for key in base_config.keys():
+        if key in current_config:
+            saved_config[key] = current_config[key]
+    
+    # 添加补充的必要参数（如果在当前配置中存在但不在基础配置中）
+    additional_keys = {
+        'pad_token_id', 'bos_token_id', 'eos_token_id',  # 特殊token相关
+        'torch_dtype',  # 数据类型
+        'tie_word_embeddings',  # 词嵌入设置
+        'attn_implementation',  # 注意力实现方式
+    }
+    
+    for key in additional_keys:
+        if key in current_config and key not in base_config:
+            saved_config[key] = current_config[key]
+    
+    # 如果使用了LoRA，保存LoRA相关配置
+    if hasattr(engine.module, 'peft_config'):
+        saved_config['peft_config'] = engine.module.peft_config
+    
+    # 保存配置
+    with open(os.path.join(save_path, 'config.json'), 'w') as f:
+        json.dump(saved_config, f, indent=4)
+
     
     # 保存损失函数
     loss_file_name = os.path.join(save_path, "loss_list.json")
@@ -297,6 +339,7 @@ def parse_args():
     parser.add_argument("--max_steps", type=int, default=None)    
     parser.add_argument("--seed", type=int, default=19260817)
     parser.add_argument("--shuffle_data", action="store_true")
+    parser.add_argument("--use_position_ids", action="store_true")
     parser.add_argument("--load_ckpt_path", type=str, default=None)
     parser.add_argument("--data_path", type=str, required=True, help="the root folder of your data")
     parser.add_argument("--deepspeed_config_path", type=str, default="deepspeed_config.json")
@@ -338,7 +381,7 @@ def main():
     deepspeed_config, lora_config = initialize(args)
     device = setup_distributed_environment(args.local_rank)
     model, tokenizer = initialize_model(device, lora_config, args)
-    train_dataloader = prepare_dataloader(deepspeed_config, args)
+    train_dataloader = prepare_dataloader(deepspeed_config, tokenizer, args)
     train_model(model, tokenizer, train_dataloader, device, deepspeed_config, args)
 
 

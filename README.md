@@ -135,6 +135,7 @@ deepspeed --include localhost:0,1,2,3 --master_port 12345 train.py \
 --deepspeed_config_path str, ds_config.json绝对路径，若不指定则使用项目中的config
 --shuffle_data store_true, 是否随机打乱训练数据
 --add_tokens str, nargs='+', 添加的特殊token，会修改模型嵌入层结构
+--use_position_ids, store_true, 是否使用position_ids让不同数据之间不计算注意力分数
 # 输出参数
 --output_path str, 输出绝对路径
 --save_name str, 保存文件夹名称（建议为模型名+训练数据名），必须指定，同时还会自动生成时间戳
@@ -146,3 +147,81 @@ deepspeed --include localhost:0,1,2,3 --master_port 12345 train.py \
 --lora_config_path str, lora_config.json绝对路径，若不指定则使用项目中的config
 ```
 
+编码后每条数据的格式
+
+
+预训练数据的格式，$s_i$结尾保证为eos
+
+<table border="1">
+  <tr>
+    <th>表头</th>
+    <th>数据s1</th>
+    <th>数据s2</th>
+    <th>...</th>
+    <th>数据sn</th>
+    <th>填充</th>
+  </tr>
+  <tr>
+    <td>input_ids</td>
+    <td>s1</td>
+    <td>s2</td>
+    <td>...</td>
+    <td>sn</td>
+    <td>pad</td>
+  </tr>
+  <tr>
+    <td>labels</td>
+    <td>s1</td>
+    <td>s2</td>
+    <td>...</td>
+    <td>sn</td>
+    <td>-100</td>
+  </tr>
+  <tr>
+    <td>position_ids</td>
+    <td>[0~len(s1)-1]</td>
+    <td>[0~len(s2)-1]</td>
+    <td>...</td>
+    <td>[0~len(sn)-1]</td>
+    <td>0</td>
+  </tr>
+</table>
+
+微调数据格式q和a由tokenizer的chat template格式化，a的结尾是eos。
+
+<table border="1">
+  <tr>
+    <th>表头</th>
+    <th>数据q1</th>
+    <th>数据a1</th>
+    <th>...</th>
+    <th>数据qn</th>
+    <th>数据an</th>
+    <th>填充</th>
+  </tr>
+  <tr>
+    <td>input_ids</td>
+    <td>q1</td>
+    <td>a1</td>
+    <td>...</td>
+    <td>qn</td>
+    <td>an</td>
+    <td>pad</td>
+  </tr>
+  <tr>
+    <td>labels</td>
+    <td>-100</td>
+    <td>a1</td>
+    <td>...</td>
+    <td>-100</td>
+    <td>an</td>
+    <td>-100</td>
+  </tr>
+  <tr>
+    <td>position_ids</td>
+    <td colspan="2">[0~len(q1+a1)-1]</td>
+    <td>...</td>
+    <td colspan="2">[0~len(qn+an)-1]</td>
+    <td>0</td>
+  </tr>
+</table>

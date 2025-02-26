@@ -81,7 +81,9 @@ class MultiFileBinaryDataset:
 
 class TorchMultiFileBinaryDataset(Dataset):
     """Torch-compatible Dataset class to handle multiple binary files."""
-    def __init__(self, data_path, shuffle=False):
+    def __init__(self, data_path, shuffle=False, use_position_ids=False, tokenizer=None):
+        self.use_position_ids = use_position_ids
+        self.tokenizer = tokenizer
         self.multi_file_dataset = MultiFileBinaryDataset(get_bin_files(data_path))
         self.shuffle = shuffle
         if shuffle:
@@ -95,18 +97,32 @@ class TorchMultiFileBinaryDataset(Dataset):
         if self.shuffle:
             idx = self.shuffled_indexs[idx]
         item = self.multi_file_dataset[idx]
-
         if isinstance(item, tuple):
             # tuple 数据解析为 (input_ids, labels)
             input_ids = item[0]
-            labels = item[1]
+            labels = item[1]    
         else:
             # 无标签的预训练语料
             input_ids = item
             labels = item
         input_ids = torch.tensor(input_ids, dtype=torch.long, device=torch.device("cpu"))
         labels = torch.tensor(labels, dtype=torch.long, device=torch.device("cpu"))
-        return {
-            "input_ids": input_ids, 
-            "labels": labels,
-        }
+        if self.use_position_ids:
+            position_ids = []
+            now = 0
+            for token in input_ids:
+                position_ids.append(now)
+                now += 1
+                if token == self.tokenizer.eos_token_id:
+                    now = 0
+            position_ids = torch.tensor(position_ids, dtype=torch.long, device=torch.device("cpu"))
+            return {
+                "input_ids": input_ids, 
+                "labels": labels,
+                "position_ids": position_ids,
+            }
+        else:
+            return {
+                "input_ids": input_ids, 
+                "labels": labels,
+            }
