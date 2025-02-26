@@ -1,0 +1,42 @@
+{
+    "bf16": {
+        "enabled": true
+    },
+    "optimizer": {
+        "type": "AdamW",
+        "params": {
+            "lr": 5e-5,
+            "betas": [
+                0.98,
+                0.999
+            ],
+            "eps": 1e-09
+        }
+    },
+    "scheduler": {
+        "type": "WarmupCosineLR",
+        "params": {
+            "total_num_steps": 250,
+            "warmup_min_ratio": 0.0001,
+            "cos_min_ratio": 0.2,
+            "warmup_num_steps": 25
+        }
+    },
+    "zero_optimization": {
+        "stage": 1,
+        "allgather_partitions": true,
+        "allgather_bucket_size": 200000000.0,
+        "overlap_comm": true,
+        "reduce_scatter": true,
+        "reduce_bucket_size": 200000000.0,
+        "contiguous_gradients": true,
+        "stage3_gather_16bit_weights_on_model_save": true,
+        "offload_optimizer": {
+            "device": "cpu"
+        }
+    },
+    "gradient_accumulation_steps": 100,
+    "train_micro_batch_size_per_gpu": 1,
+    "wall_clock_breakdown": false,
+    "steps_per_print": 100
+}
