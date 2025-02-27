@@ -217,7 +217,7 @@ def save_checkpoint(engine, tokenizer, step, losses, args):
     # engine.save_16bit_model(save_path)
     
     # 保存safetensor格式
-    engine.module.save_pretrained(save_path,safe_serialization=True)
+    engine.module.save_pretrained(save_path, torch_dtype=torch.bfloat16, safe_serialization=True)
 
     # 保存config
     
