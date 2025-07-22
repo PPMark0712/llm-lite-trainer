@@ -1,11 +1,9 @@
 declare -A corpus_loader_map=(
-    ["fincorpus_hard_sample_pos_ent"]="/home/yyz/projects/train_exp/encode/data_loaders/fincorpus_hard_sample_pos_ent.py pretrain"
-    # ["fincorpus_mix_sample_mix_ent"]="/home/yyz/projects/train_exp/encode/data_loaders/fincorpus_mix_sample_mix_ent.py pretrain"
-    # ["fincorpus_hard_sample_mix_ent"]="/home/yyz/projects/train_exp/encode/data_loaders/fincorpus_hard_sample_mix_ent.py pretrain"
+    ["dataset_name"]="/path/to/data_loader.py pretrain"
 )
 
 declare -A tokenizer_path_map=(
-    ["Qwen2.5"]="/mnt/remote-data/downloads/models/Qwen/Qwen2.5-7B-Instruct"
+    ["model_name"]="/path/to/model"
 )
 
 # Loop through the corpus_loader_map
