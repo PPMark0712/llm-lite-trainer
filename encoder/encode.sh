@@ -1,3 +1,5 @@
+cd /path/to/llm-lite-trainer/encoder
+
 declare -A corpus_loader_map=(
     ["dataset_name"]="/path/to/data_loader.py pretrain"
 )
