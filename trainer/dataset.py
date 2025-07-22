@@ -12,6 +12,7 @@ def get_bin_files(file_path):
         for file in files:
             if file.endswith('.bin'):
                 bin_files.append(os.path.join(root, file))
+    bin_files.sort()
     return bin_files
 
 
