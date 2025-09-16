@@ -1,4 +1,4 @@
-import json, os
+import json, os, sys
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -7,12 +7,10 @@ def draw_loss(ckpt_path):
     loss_fn = os.path.join(ckpt_path, "loss_list.json")
     with open(loss_fn, "r") as f:
         l = json.load(f)
-        
-    plt.clf()
-    
-    # 折线图保留n_points个点，否则上万条数据的折线图会很乱
+
+    plt.figure(figsize=(18, 8))
     x, y = [], []
-    n_points = min(100, len(l))  # 图上保留几个点
+    n_points = len(l) // 100  # 图上保留几个点
     step = len(l) // n_points 
     for i in range(0, len(l), step):
         x.append(i + 1)
@@ -22,16 +20,16 @@ def draw_loss(ckpt_path):
     plt.title("train loss")
     plt.xlabel("steps")
     plt.ylabel("loss")
-    plt.plot(x, y)
+    plt.plot(x, y, lw=0.5)
 
     # 将loss图片保存在对应checkpoint文件夹中
-    fn = os.path.join(ckpt_path, "loss_img.png")
+    fn = os.path.join(ckpt_path, "loss_img.svg")
     # print("save loss picture at:", fn)
     plt.savefig(fn)
-   
+    plt.close()
 
 
 if __name__ == "__main__":
     # 读取loss_list
-    ckpt_path = ""
+    ckpt_path = sys.argv[1]
     draw_loss(ckpt_path)

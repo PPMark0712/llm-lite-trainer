@@ -1,9 +1,9 @@
-import pickle
-import torch
-from torch.utils.data import Dataset
 import random
 import os
+import pickle
 
+import torch
+from torch.utils.data import Dataset
 
 def get_bin_files(file_path):
     # 递归地获取文件夹中所有.bin后缀的完整文件路径
