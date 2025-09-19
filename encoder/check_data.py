@@ -21,11 +21,11 @@ class BinaryDataset:
             f.seek(start_offset)
             data = f.read() if end_offset is None else f.read(end_offset - start_offset)
         return pickle.loads(data)
-    
+
 
 if __name__ == "__main__":
     import glob
-    file_list = glob.glob("/data1/yyz/projects/forget/train/dataset/alpaca/*.bin") 
+    file_list = glob.glob("/data1/yyz/projects/forget/train/dataset/alpaca/*.bin")
     for fn in file_list:
         dataset = BinaryDataset(fn)
         for item in dataset:

@@ -18,7 +18,7 @@ def data_func_pretrain(data, tokenizer, args):
     for item in data:
         tokens.extend(item)
     max_length = args.max_length
-    
+
     # 每max_length切分一段
     ret = []
     for i in range(0, len(tokens) - max_length, max_length):

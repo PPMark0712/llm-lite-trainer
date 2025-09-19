@@ -11,7 +11,7 @@ def draw_loss(ckpt_path):
     plt.figure(figsize=(18, 8))
     x, y = [], []
     n_points = len(l) // 100  # 图上保留几个点
-    step = len(l) // n_points 
+    step = len(l) // n_points
     for i in range(0, len(l), step):
         x.append(i + 1)
         y.append(np.mean(l[i:i + step]))  # 取一段loss的平均值，而非单点取值

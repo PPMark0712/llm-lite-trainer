@@ -101,7 +101,7 @@ class TorchMultiFileBinaryDataset(Dataset):
         if isinstance(item, tuple):
             # tuple 数据解析为 (input_ids, labels)
             input_ids = item[0]
-            labels = item[1]    
+            labels = item[1]
         else:
             # 无标签的预训练语料
             input_ids = item
@@ -118,13 +118,13 @@ class TorchMultiFileBinaryDataset(Dataset):
                     now = 0
             position_ids = torch.tensor(position_ids, dtype=torch.long, device=torch.device("cpu"))
             return {
-                "input_ids": input_ids, 
+                "input_ids": input_ids,
                 "labels": labels,
                 "position_ids": position_ids,
             }
         else:
             return {
-                "input_ids": input_ids, 
+                "input_ids": input_ids,
                 "labels": labels,
             }
 
@@ -170,12 +170,12 @@ class CurriculumLearningDataset(Dataset):
                     now = 0
             position_ids = torch.tensor(position_ids, dtype=torch.long, device=torch.device("cpu"))
             return {
-                "input_ids": input_ids, 
+                "input_ids": input_ids,
                 "labels": labels,
                 "position_ids": position_ids,
             }
         else:
             return {
-                "input_ids": input_ids, 
+                "input_ids": input_ids,
                 "labels": labels,
             }

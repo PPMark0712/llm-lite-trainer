@@ -12,16 +12,16 @@ def encode_qa(tokenizer, conversation: dict):
 
 def data_func_qa(data, tokenizer, args):
     save_dtype = np.int16 if args.save_dtype == "int16" else np.int32
-    
+
     if args.merge_data:
         merged_data = []
         heapq.heapify(merged_data)  # 初始化空堆
-        
+
         # 用优先队列模拟 best-fit 法求解装箱问题
         for input_ids, labels in data:
             if len(input_ids) >= args.max_length:
                 continue  # 丢弃过长数据
-            
+
             # 将新的数据尝试与堆中最短的合并
             merged = False
             if merged_data:
@@ -38,11 +38,11 @@ def data_func_qa(data, tokenizer, args):
                 else:
                     # 如果不能合并，将其放回堆中
                     heapq.heappush(merged_data, (shortest_len, shortest_input_ids, shortest_labels))
-            
+
             # 如果无法合并，则创建一个新的条目
             if not merged:
                 heapq.heappush(merged_data, (len(input_ids), input_ids, labels))
-        
+
         ret_data = []
         # Padding 并调整数据类型
         for _, input_ids, labels in merged_data:
@@ -52,9 +52,9 @@ def data_func_qa(data, tokenizer, args):
             input_ids = np.array(input_ids, dtype=save_dtype)
             labels = np.array(labels, dtype=save_dtype)
             ret_data.append((input_ids, labels))
-        
+
         return ret_data
-    
+
     else:
         ret_data = []
         # 非合并模式下进行常规的 padding 和类型转换
@@ -67,5 +67,5 @@ def data_func_qa(data, tokenizer, args):
             input_ids = np.array(input_ids, dtype=save_dtype)
             labels = np.array(labels, dtype=save_dtype)
             ret_data.append((input_ids, labels))
-        
+
         return ret_data

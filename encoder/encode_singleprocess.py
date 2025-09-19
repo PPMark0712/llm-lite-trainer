@@ -39,13 +39,13 @@ def initialize(args):
     config_cn = os.path.join(args.save_path, "config.json")
     with open(config_cn, "w") as f:
         json.dump({"args": {**vars(args)}}, f, indent=4)
-    
+
     print(f"Loading tokenizer from {args.tokenizer_path}")
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
     if not tokenizer.pad_token_id:
         tokenizer.pad_token_id = tokenizer.eos_token_id
         tokenizer.pad_token = tokenizer.eos_token
-    assert tokenizer.vocab_size <= 1 << 16 or args.save_dtype == "int32", "int16 is can't cover the tokenizer vocab size"    
+    assert tokenizer.vocab_size <= 1 << 16 or args.save_dtype == "int32", "int16 is can't cover the tokenizer vocab size"
     return tokenizer
 
 
@@ -69,13 +69,13 @@ def main(args):
         total_token_processed += token_cnt
 
         # 每处理100条数据，输出一次运行效率
-        if step % 100 == 0:  
+        if step % 100 == 0:
             elapsed = time.time() - start_time
             second = int(time.time() - start_time)
             print(f"\rprocessed {total_token_processed:.2e} tokens, run for {(second // 3600):02d}:{(second // 60 % 60):02d}:{(second % 60):02d}, {(total_token_processed / elapsed):.2e} tokens/s", end="")
-        
+
         # 每tokens_per_file个token需要将tokens_list写入文件
-        if cur_tokens >= args.tokens_per_file:  
+        if cur_tokens >= args.tokens_per_file:
             data = data_func(cur_data, tokenizer, args)
             fn = os.path.join(args.save_path, f"{args.corpus_name}_{file_idx}.bin")
             save_binary_file(data, fn)
@@ -83,7 +83,7 @@ def main(args):
             file_idx += 1
             cur_tokens = 0
             cur_data = []
-    
+
     # 处理最后一部分数据
     if cur_tokens > 0:
         data = data_func(cur_data, tokenizer, args)

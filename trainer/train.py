@@ -41,7 +41,7 @@ def setup_distributed_environment(local_rank):
 def initialize_model(device, lora_config, args):
     """加载和初始化模型"""
     print0("\n" + "=" * 20 + "\nLoading model...\n" + "=" * 20 + "\n")
-    
+
     if args.use_lora:
         model = AutoModelForCausalLM.from_pretrained(
             args.model_path,
@@ -73,7 +73,7 @@ def initialize_model(device, lora_config, args):
                 new_token_indices = range(len(tokenizer) - num_added_tokens, len(tokenizer))
                 for token_index in new_token_indices:
                     embedding_layer.weight[token_index].uniform_(-0.1, 0.1)  # 均匀分布初始化
-    
+
     return model, tokenizer
 
 
@@ -100,7 +100,7 @@ def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
         model_parameters=model.parameters(),
     )
     engine.train()
-    
+
     # 初始化step和epoch
     step = 0
     losses = []
@@ -138,7 +138,7 @@ def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
         else:
             total_train_steps = (args.max_epochs - begin_epoch + 1) * len(train_dataloader) - begin_epoch_step
         pbar = tqdm(total=total_train_steps, ncols=95)
-        
+
         # 加载存档点batch的进度条
         if args.load_ckpt_path:
             skip_pbar = tqdm(total=begin_epoch_step, desc="Loading checkpoint", ncols=90)
@@ -158,7 +158,7 @@ def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
                 continue
             if epoch == begin_epoch and batch_id == begin_step and (args.local_rank == -1 or dist.get_rank() == 0) and args.load_ckpt_path:
                 skip_pbar.close()
-            
+
             batch = {k: v.to(device) for k, v in batch.items()}  # 把输入放进显卡
 
             # 前向传播，计算loss，反向传播
@@ -173,7 +173,7 @@ def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
             engine.step()
             step += 1
             losses.append(loss.item())
-      
+
             # 更新训练进度条
             if args.local_rank == -1 or dist.get_rank() == 0:
                 pbar.update()
@@ -182,15 +182,15 @@ def train_model(model, tokenizer, train_dataloader, device, ds_config, args):
             # 根据save_steps保存存档点
             if args.save_steps and step % args.save_steps == 0:
                 save_checkpoint(engine, tokenizer, step, losses, args)
-            
+
             # 根据max_steps终止训练
             if args.max_steps and step >= args.max_steps:
                 break
-        
+
         # 根据save_epochs保存存档点
         if args.save_epochs and epoch % args.save_epochs == 0:
             save_checkpoint(engine, tokenizer, step, losses, args)
-        
+
         # 根据max_steps终止训练
         if args.max_steps and step >= args.max_steps:
             break
@@ -215,31 +215,31 @@ def save_checkpoint(engine, tokenizer, step, losses, args):
 
     # 保存pytorch .bin格式模型
     # engine.save_16bit_model(save_path)
-    
+
     # 保存safetensor格式
     engine.module.save_pretrained(save_path, torch_dtype=torch.bfloat16, safe_serialization=True)
 
     # 保存config
-    
+
     # 加载初始配置
     if args.use_lora:
         base_config_path = os.path.join(args.model_path, 'config.json')
     else:
         base_model_path = args.model_path if not args.load_ckpt_path else os.path.join(args.load_ckpt_path, args.ckpt_path, f"step_{args.load_ckpt_step}")
         base_config_path = os.path.join(base_model_path, 'config.json')
-    
+
     with open(base_config_path, 'r') as f:
         base_config = json.load(f)
-    
+
     # 获取当前配置
     current_config = engine.module.config.to_dict()
-    
+
     # 只保存基础配置中存在的参数
     saved_config = {}
     for key in base_config.keys():
         if key in current_config:
             saved_config[key] = current_config[key]
-    
+
     # 添加补充的必要参数（如果在当前配置中存在但不在基础配置中）
     additional_keys = {
         'pad_token_id', 'bos_token_id', 'eos_token_id',  # 特殊token相关
@@ -247,20 +247,20 @@ def save_checkpoint(engine, tokenizer, step, losses, args):
         'tie_word_embeddings',  # 词嵌入设置
         'attn_implementation',  # 注意力实现方式
     }
-    
+
     for key in additional_keys:
         if key in current_config and key not in base_config:
             saved_config[key] = current_config[key]
-    
+
     # 如果使用了LoRA，保存LoRA相关配置
     if hasattr(engine.module, 'peft_config'):
         saved_config['peft_config'] = engine.module.peft_config
-    
+
     # 保存配置
     with open(os.path.join(save_path, 'config.json'), 'w') as f:
         json.dump(saved_config, f, indent=4)
 
-    
+
     # 保存损失函数
     loss_file_name = os.path.join(save_path, "loss_list.json")
     if args.local_rank == -1 or dist.get_rank() == 0:
@@ -288,7 +288,7 @@ def initialize(args):
     with open(args.deepspeed_config_path, "r", encoding="utf-8") as f:
         deepspeed_config = json.load(f)
     lora_config = None
-    
+
     # save start time
     t = datetime.datetime.now()
     args.start_time = f"{t.year}-{t.month:02d}-{t.day:02d}_{t.hour:02d}-{t.minute:02d}"
@@ -312,7 +312,7 @@ def initialize(args):
         else:
             args.save_path = os.path.join(args.output_path, f"{args.start_time}_{args.save_name}")
         args.load_ckpt_step = 0
-        
+
     os.makedirs(args.save_path, exist_ok=True)
     config_fn = os.path.join(args.save_path, f"train_config_{args.load_ckpt_step}.json")
     with open(config_fn, "w") as f:
@@ -336,7 +336,7 @@ def parse_args():
     # train params
     parser.add_argument("--model_path", type=str, required=True)
     parser.add_argument("--max_epochs", type=int, default=None)
-    parser.add_argument("--max_steps", type=int, default=None)    
+    parser.add_argument("--max_steps", type=int, default=None)
     parser.add_argument("--seed", type=int, default=19260817)
     parser.add_argument("--shuffle_data", action="store_true")
     parser.add_argument("--use_position_ids", action="store_true")
