@@ -46,6 +46,8 @@ def initialize(args):
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
+    if not tokenizer.pad_token_id:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
     return tokenizer
 
 

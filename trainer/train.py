@@ -10,7 +10,7 @@ from torch.utils.data.distributed import DistributedSampler
 import deepspeed
 from peft import get_peft_model, PeftModel, LoraConfig
 
-from dataset import TorchMultiFileBinaryDataset
+from dataset import CurriculumLearningDataset
 from draw_loss import draw_loss
 
 
@@ -80,7 +80,7 @@ def initialize_model(device, lora_config, args):
 def prepare_dataloader(deepspeed_config, tokenizer, args):
     """准备数据加载器"""
     print0("\n" + "=" * 20 + "\nLoading dataset...\n" + "=" * 20 + "\n")
-    train_dataset = TorchMultiFileBinaryDataset(data_path=args.data_path, shuffle=False, use_position_ids=args.use_position_ids, tokenizer=tokenizer)
+    train_dataset = CurriculumLearningDataset(data_path=args.data_path, data_cnt=args.max_steps * 4, use_position_ids=args.use_position_ids, tokenizer=tokenizer)
     train_sampler = DistributedSampler(train_dataset, shuffle=args.shuffle_data) if args.local_rank != -1 else None
     train_dataloader = DataLoader(
         dataset=train_dataset,

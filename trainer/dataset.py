@@ -130,25 +130,53 @@ class TorchMultiFileBinaryDataset(Dataset):
 
 
 class CurriculumLearningDataset(Dataset):
-    def __init__(self, data_path, max_steps, use_position_ids=False, tokenizer=None):
+    def __init__(self, data_path, data_cnt, use_position_ids=False, tokenizer=None):
         self.use_position_ids = use_position_ids
         self.tokenizer = tokenizer
         self.multi_file_dataset = MultiFileBinaryDataset(get_bin_files(data_path))
-        self.shuffled_indexs = self.get_sorted_index(max_steps)
+        self.sorted_indexes = self.get_sorted_indexes(len(self.multi_file_dataset), data_cnt, 100)
+        print(f"len(self.shuffled_indexes): {len(self.sorted_indexes)}")
+        print(f"len(origin_data) = {len(self.multi_file_dataset)}")
+        assert len(set(self.sorted_indexes)) == len(self.sorted_indexes)
+        for x in self.sorted_indexes:
+            assert 0 <= x < len(self.multi_file_dataset)
 
-    def get_sorted_index(self, max_steps, blocks=10):
-        indexs = []
-        for i in range(blocks):
-            start = i * len(self.multi_file_dataset)
-            end = (i + 1) * len(self.multi_file_dataset)
-            indexs.extend(list(range(start, end)))
-        return indexs
+    def get_sorted_indexes(self, origin_len, M, T):
+        assert M % (T * T * 2) == 0
+        blocks = []
+        origin_idxs = list(range(origin_len))
+        fixed_idxs = random.sample(origin_idxs, M)
+        fixed_idxs.sort()
+        num_per_block = M // T
+        for i in range(T):
+            start = i * num_per_block
+            end = (i + 1) * num_per_block
+            cur_block = fixed_idxs[start:end]
+            random.shuffle(cur_block)
+            blocks.append(cur_block)
+
+        sample_unit = num_per_block // (T * 2)
+        idxs = []
+        for stage_id in range(T):
+            stage_idxs = []
+            for block_id in range(stage_id + 1):
+                if block_id != stage_id:
+                    sample_count = sample_unit * 1
+                else:
+                    sample_count = sample_unit * (stage_id + T + 1)
+                sampled_idxs = blocks[block_id][-sample_count:]
+                for _ in range(sample_count):
+                    blocks[block_id].pop()
+                stage_idxs.extend(sampled_idxs)
+            random.shuffle(stage_idxs)
+            idxs.extend(stage_idxs)
+        return idxs
 
     def __len__(self):
-        return len(self.multi_file_dataset)
+        return len(self.sorted_indexes)
 
     def __getitem__(self, idx):
-        idx = self.shuffled_indexs[idx]
+        idx = self.sorted_indexes[idx]
         item = self.multi_file_dataset[idx]
         if isinstance(item, tuple):
             # tuple 数据解析为 (input_ids, labels)
