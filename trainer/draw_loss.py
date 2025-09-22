@@ -10,7 +10,7 @@ def draw_loss(ckpt_path):
 
     plt.figure(figsize=(18, 8))
     x, y = [], []
-    n_points = min(len(l), max(len(l) // 100, 100))  # 图上保留几个点
+    n_points = min(len(l), max(len(l) // 100, 1000))  # 图上保留几个点
     step = len(l) // n_points 
     for i in range(0, len(l), step):
         x.append(i + 1)
