@@ -4,16 +4,16 @@
 
 ```text
 创建并激活环境
-conda create -n yyz_train python=3.11
+conda create -n yyz_tmp python=3.12
 conda activate yyz_train
 
 安装cudatoolkit和cudatoolkit-dev
-conda install nvidia/label/cuda-11.8.0::cuda-toolkit
+conda install nvidia/label/cuda-12.6.0::cuda-toolkit
 
-安装pytorch 2.4.0（从官网上复制的对应版本的指令）
-pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu118
+安装pytorch（从官网上复制的对应版本的指令）
+pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu126
 
-安装flash attention，若无法执行，可以尝试去掉后面的"--no-build-isolation"
+安装flash attention，这一步可能比较慢，显示‘Building wheel for flash-attn(setup.py)...-’并转圈圈数十分钟是正常现象。
 pip install flash-attn --no-build-isolation
 
 安装其他依赖包
