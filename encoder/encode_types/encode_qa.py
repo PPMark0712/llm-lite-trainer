@@ -5,8 +5,11 @@ import numpy as np
 def encode_qa(tokenizer, conversation: dict):
     q_ids = tokenizer(conversation["q"])["input_ids"]
     a_ids = tokenizer(conversation["a"])["input_ids"]
-    input_ids = q_ids + a_ids + [tokenizer.eos_token_id]
-    labels = [-100] * len(q_ids) + a_ids + [tokenizer.eos_token_id]
+    input_ids = q_ids + a_ids
+    labels = [-100] * len(q_ids) + a_ids
+    if input_ids[-1] != tokenizer.eos_token_id:
+        input_ids.append(tokenizer.eos_token_id)
+        labels.append(tokenizer.eos_token_id)
     token_cnt = len(input_ids)
     return (input_ids, labels), token_cnt
 
