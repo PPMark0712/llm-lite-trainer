@@ -4,7 +4,7 @@
 
 ```text
 创建并激活环境
-conda create -n yyz_tmp python=3.12
+conda create -n yyz_train python=3.12
 conda activate yyz_train
 
 安装cudatoolkit和cudatoolkit-dev
